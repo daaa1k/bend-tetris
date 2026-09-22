@@ -1,5 +1,6 @@
 import Rules from "./game.bend";
 import { isTSpinPosition } from "./t-spin.mjs";
+import { createLockState, observeGround, resetAfterManeuver } from "./lock-delay.mjs";
 
 const COLS = 10;
 const ROWS = 20;
@@ -30,6 +31,7 @@ let paused = false;
 let lastFall = 0;
 let seed = (Date.now() >>> 0) || 1;
 let lastActionWasRotation = false;
+let lockState = createLockState();
 
 const maskOf = (piece, rotation = 0) => Rules.mask(piece, rotation) >>> 0;
 
@@ -72,6 +74,7 @@ function spawn() {
   fillQueue();
   active = { piece: queue.shift(), rotation: 0, x: 3, y: -1 };
   lastActionWasRotation = false;
+  lockState = createLockState();
   canHold = true;
   renderPreviews();
   if (collides(active.piece, active.rotation, active.x, active.y)) endGame();
@@ -90,28 +93,35 @@ function reset() {
   drawMini(document.querySelector("#hold"), null);
 }
 
-function move(dx, dy) {
+function isGrounded() {
+  return collides(active.piece, active.rotation, active.x, active.y + 1);
+}
+
+function move(dx, dy, awardSoftDrop = true) {
   if (!running || paused) return false;
+  const wasGrounded = isGrounded();
   if (!collides(active.piece, active.rotation, active.x + dx, active.y + dy)) {
     active.x += dx;
     active.y += dy;
     lastActionWasRotation = false;
-    if (dy > 0) score += 1;
+    resetAfterManeuver(lockState, wasGrounded, isGrounded(), performance.now());
+    if (dy > 0 && awardSoftDrop) score += 1;
     updateHud();
     return true;
   }
-  if (dy > 0) lock();
   return false;
 }
 
 function rotate(direction) {
   if (!running || paused) return;
+  const wasGrounded = isGrounded();
   const next = (active.rotation + direction + 4) % 4;
   for (const kick of [0, -1, 1, -2, 2]) {
     if (!collides(active.piece, next, active.x + kick, active.y)) {
       active.rotation = next;
       active.x += kick;
       lastActionWasRotation = true;
+      resetAfterManeuver(lockState, wasGrounded, isGrounded(), performance.now());
       return;
     }
   }
@@ -286,7 +296,11 @@ function togglePause() {
   if (!running) return;
   paused = !paused;
   if (paused) showOverlay("PAUSED", "P またはボタンで再開", "RESUME");
-  else { overlay.classList.add("hidden"); lastFall = performance.now(); }
+  else {
+    overlay.classList.add("hidden");
+    lastFall = performance.now();
+    if (lockState.startedAt !== null) lockState.startedAt = lastFall;
+  }
 }
 
 function action(name) {
@@ -324,7 +338,8 @@ function frame(now) {
   if (running && !paused) {
     const level = Rules.level(lines) >>> 0;
     const interval = Rules.gravity_ms(level) >>> 0;
-    if (now - lastFall >= interval) { move(0, 1); lastFall = now; }
+    if (now - lastFall >= interval) { move(0, 1, false); lastFall = now; }
+    if (running && observeGround(lockState, isGrounded(), now)) lock();
   }
   drawBoard();
   requestAnimationFrame(frame);
