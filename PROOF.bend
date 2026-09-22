@@ -12,6 +12,15 @@ def Laws.starting_tetris_score():
 def Laws.level_four_tetris_score():
   {==}
 
+def Laws.empty_t_spin_score():
+  {==}
+
+def Laws.t_spin_double_score():
+  {==}
+
+def Laws.level_two_t_spin_triple_score():
+  {==}
+
 def Laws.square_rotation_invariant(rotation):
   {==}
 

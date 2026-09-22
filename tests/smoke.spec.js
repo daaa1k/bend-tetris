@@ -10,7 +10,8 @@ test("starts and accepts the core controls", async ({ page }) => {
   await expect(page.locator("#overlay")).toHaveClass(/hidden/);
 
   await page.keyboard.press("ArrowLeft");
-  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("z");
+  await page.keyboard.press("x");
   await page.keyboard.press("Space");
   await expect(page.locator("#score")).not.toHaveText("000000");
   expect(errors).toEqual([]);

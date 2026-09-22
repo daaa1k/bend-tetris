@@ -1,6 +1,6 @@
 # Bend / Tetris
 
-Bend で定義したテトロミノ形状・スコア・レベル・落下速度・乱数規則を、ブラウザの Canvas UI から呼び出すテトリスです。
+Bend で定義したテトロミノ形状・通常／Tスピンのスコア・レベル・落下速度・乱数規則を、ブラウザの Canvas UI から呼び出すテトリスです。
 
 `LAWS.bend` にゲーム規則の契約を、`PROOF.bend` にその証明を定義しています。
 
@@ -16,7 +16,8 @@ python3 -m http.server 8080 -d dist
 ## 操作
 
 - `←` / `→`: 移動
-- `↑` / `Z`: 回転
+- `↑` / `X`: 右回転
+- `Z`: 左回転
 - `↓`: ソフトドロップ
 - `Space`: ハードドロップ
 - `C`: ホールド
@@ -28,6 +29,7 @@ python3 -m http.server 8080 -d dist
 
 ```sh
 npm run test:proof
+npm run test:unit
 npm install
 npx playwright install chromium
 npm run test:e2e
