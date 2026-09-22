@@ -1,0 +1,13 @@
+{
+  "name": "bend-tetris",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "bend index.html -o dist",
+    "serve": "python3 -m http.server 4173 -d dist",
+    "test:e2e": "playwright test tests/smoke.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}
