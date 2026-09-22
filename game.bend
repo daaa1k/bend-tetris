@@ -32,6 +32,11 @@ def line_score(+lines: U32, +level: U32) -> U32:
   tetris = pick(U32, U32.is_ge(lines, 4), 800, base)
   (tetris * (level + 1 : U32) : U32)
 
+# Guideline-style T-spin awards, including a no-line spin reward.
+def t_spin_score(+lines: U32, +level: U32) -> U32:
+  base = choose4(U32, lines, 400, 800, 1200, 1600)
+  (base * (level + 1 : U32) : U32)
+
 def level(total_lines: U32) -> U32:
   (total_lines / 10 : U32)
 

@@ -29,6 +29,7 @@
 
       <div class="board-wrap">
         <canvas id="board" width="320" height="640" aria-label="テトリス盤面"></canvas>
+        <div id="callout" class="callout" aria-live="polite"></div>
         <div id="overlay" class="overlay">
           <p class="overlay-kicker">BEND COMPUTE CORE</p>
           <h2 id="overlay-title">READY?</h2>
@@ -43,7 +44,8 @@
         <div class="divider"></div>
         <div class="controls">
           <div><kbd>←</kbd><kbd>→</kbd><span>MOVE</span></div>
-          <div><kbd>↑</kbd><span>ROTATE</span></div>
+          <div><kbd>↑</kbd><kbd>X</kbd><span>ROTATE CW</span></div>
+          <div><kbd>Z</kbd><span>ROTATE CCW</span></div>
           <div><kbd>↓</kbd><span>SOFT DROP</span></div>
           <div><kbd>SPACE</kbd><span>HARD DROP</span></div>
           <div><kbd>C</kbd><span>HOLD</span></div>
@@ -54,7 +56,8 @@
 
     <nav class="touch" aria-label="タッチ操作">
       <button data-action="left" aria-label="左へ">←</button>
-      <button data-action="rotate" aria-label="回転">↻</button>
+      <button data-action="rotate-left" aria-label="左回転">↶</button>
+      <button data-action="rotate-right" aria-label="右回転">↷</button>
       <button data-action="right" aria-label="右へ">→</button>
       <button data-action="down" aria-label="下へ">↓</button>
       <button data-action="drop" class="wide" aria-label="ハードドロップ">DROP</button>

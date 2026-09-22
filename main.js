@@ -1,4 +1,5 @@
 import Rules from "./game.bend";
+import { isTSpinPosition } from "./t-spin.mjs";
 
 const COLS = 10;
 const ROWS = 20;
@@ -15,6 +16,7 @@ const startButton = document.querySelector("#start");
 const scoreEl = document.querySelector("#score");
 const linesEl = document.querySelector("#lines");
 const levelEl = document.querySelector("#level");
+const calloutEl = document.querySelector("#callout");
 
 let board;
 let active;
@@ -27,6 +29,7 @@ let running = false;
 let paused = false;
 let lastFall = 0;
 let seed = (Date.now() >>> 0) || 1;
+let lastActionWasRotation = false;
 
 const maskOf = (piece, rotation = 0) => Rules.mask(piece, rotation) >>> 0;
 
@@ -68,6 +71,7 @@ function collides(piece, rotation, px, py) {
 function spawn() {
   fillQueue();
   active = { piece: queue.shift(), rotation: 0, x: 3, y: -1 };
+  lastActionWasRotation = false;
   canHold = true;
   renderPreviews();
   if (collides(active.piece, active.rotation, active.x, active.y)) endGame();
@@ -91,6 +95,7 @@ function move(dx, dy) {
   if (!collides(active.piece, active.rotation, active.x + dx, active.y + dy)) {
     active.x += dx;
     active.y += dy;
+    lastActionWasRotation = false;
     if (dy > 0) score += 1;
     updateHud();
     return true;
@@ -99,13 +104,14 @@ function move(dx, dy) {
   return false;
 }
 
-function rotate() {
+function rotate(direction) {
   if (!running || paused) return;
-  const next = (active.rotation + 1) % 4;
+  const next = (active.rotation + direction + 4) % 4;
   for (const kick of [0, -1, 1, -2, 2]) {
     if (!collides(active.piece, next, active.x + kick, active.y)) {
       active.rotation = next;
       active.x += kick;
+      lastActionWasRotation = true;
       return;
     }
   }
@@ -118,6 +124,7 @@ function hardDrop() {
     active.y++;
     distance++;
   }
+  if (distance > 0) lastActionWasRotation = false;
   score += distance * 2;
   lock();
 }
@@ -130,6 +137,7 @@ function hold() {
     spawn();
   } else {
     active = { piece: held, rotation: 0, x: 3, y: -1 };
+    lastActionWasRotation = false;
     held = current;
   }
   canHold = false;
@@ -137,7 +145,19 @@ function hold() {
   renderPreviews();
 }
 
+function isTSpin() {
+  return isTSpinPosition(board, { ...active, lastActionWasRotation });
+}
+
+function announce(text) {
+  calloutEl.textContent = text;
+  calloutEl.classList.remove("show");
+  void calloutEl.offsetWidth;
+  calloutEl.classList.add("show");
+}
+
 function lock() {
+  const tSpin = isTSpin();
   let aboveTop = false;
   for (const [x, y] of cells(active.piece, active.rotation)) {
     const by = active.y + y;
@@ -150,9 +170,14 @@ function lock() {
   board = board.filter(row => row.some(cell => cell === -1));
   const cleared = before - board.length;
   while (board.length < ROWS) board.unshift(Array(COLS).fill(-1));
-  if (cleared) {
-    const currentLevel = Rules.level(lines) >>> 0;
+  const currentLevel = Rules.level(lines) >>> 0;
+  if (tSpin) {
+    score += Rules.t_spin_score(cleared, currentLevel) >>> 0;
+    announce(["T-SPIN", "T-SPIN SINGLE", "T-SPIN DOUBLE", "T-SPIN TRIPLE"][cleared] || "T-SPIN");
+  } else if (cleared) {
     score += Rules.line_score(cleared, currentLevel) >>> 0;
+  }
+  if (cleared) {
     lines += cleared;
     document.body.classList.remove("flash");
     void document.body.offsetWidth;
@@ -265,12 +290,25 @@ function togglePause() {
 }
 
 function action(name) {
-  const actions = { left: () => move(-1, 0), right: () => move(1, 0), down: () => move(0, 1), rotate, drop: hardDrop, hold };
+  const actions = {
+    left: () => move(-1, 0),
+    right: () => move(1, 0),
+    down: () => move(0, 1),
+    "rotate-left": () => rotate(-1),
+    "rotate-right": () => rotate(1),
+    drop: hardDrop,
+    hold
+  };
   actions[name]?.();
 }
 
 document.addEventListener("keydown", event => {
-  const keymap = { ArrowLeft: "left", ArrowRight: "right", ArrowDown: "down", ArrowUp: "rotate", z: "rotate", Z: "rotate", " ": "drop", c: "hold", C: "hold" };
+  const keymap = {
+    ArrowLeft: "left", ArrowRight: "right", ArrowDown: "down",
+    ArrowUp: "rotate-right", x: "rotate-right", X: "rotate-right",
+    z: "rotate-left", Z: "rotate-left",
+    " ": "drop", c: "hold", C: "hold"
+  };
   if (event.key === "Enter" && !running) { startGame(); return; }
   if (event.key === "p" || event.key === "P" || event.key === "Escape") { togglePause(); return; }
   const name = keymap[event.key];

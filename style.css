@@ -41,6 +41,9 @@ h1 i { color: #42485d; font-style: normal; padding: 0 .12em; }
 .panel { min-height: 400px; padding: 22px 18px; }
 .board-wrap { position: relative; padding: 1px; }
 #board { display: block; width: 320px; max-width: 100%; height: auto; background: #090c14; }
+.callout { position: absolute; top: 44%; left: 50%; z-index: 2; width: 100%; transform: translate(-50%, -50%) scale(.9); color: var(--acid); opacity: 0; text-align: center; text-shadow: 0 0 24px #c8ff38aa; font: 800 25px/1 Arial, sans-serif; letter-spacing: .08em; pointer-events: none; }
+.callout.show { animation: callout .9s ease-out; }
+@keyframes callout { 0% { opacity: 0; transform: translate(-50%, -35%) scale(.8); } 18%, 62% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -65%) scale(1.06); } }
 .stat { margin-bottom: 23px; }
 .stat small, .mini-title { display: block; margin-bottom: 7px; color: var(--muted); font-size: 10px; letter-spacing: .18em; }
 .stat strong { font-size: 22px; font-weight: 500; letter-spacing: .06em; }
@@ -61,7 +64,7 @@ kbd { min-width: 22px; padding: 4px 5px; border: 1px solid #343a50; border-radiu
 #start { margin-top: 10px; padding: 12px 20px; border: 1px solid var(--acid); color: #0a0c12; background: var(--acid); font: 700 11px inherit; letter-spacing: .12em; cursor: pointer; }
 #start:hover { box-shadow: 0 0 25px #c8ff3855; }
 
-.touch { display: none; grid-template-columns: repeat(6, 1fr); gap: 7px; margin-top: 12px; }
+.touch { display: none; grid-template-columns: repeat(7, 1fr); gap: 7px; margin-top: 12px; }
 .touch button { min-height: 48px; border: 1px solid var(--line); color: var(--ink); background: #141827; font: 700 14px inherit; touch-action: manipulation; }
 .touch .wide { color: var(--acid); }
 footer { margin-top: 18px; color: #51586e; text-align: center; font-size: 9px; letter-spacing: .13em; }

@@ -17,6 +17,16 @@ law starting_tetris_score:
 law level_four_tetris_score:
   {Game.line_score(4, 4) == 4000 : U32}
 
+# T-spins use their own scoring table, including spins without a line clear.
+law empty_t_spin_score:
+  {Game.t_spin_score(0, 0) == 400 : U32}
+
+law t_spin_double_score:
+  {Game.t_spin_score(2, 0) == 1200 : U32}
+
+law level_two_t_spin_triple_score:
+  {Game.t_spin_score(3, 2) == 4800 : U32}
+
 # The square tetromino has the same bitmap in every rotation state.
 law square_rotation_invariant:
   for rotation: U32
