@@ -2,6 +2,8 @@
 
 Bend で定義したテトロミノ形状・スコア・レベル・落下速度・乱数規則を、ブラウザの Canvas UI から呼び出すテトリスです。
 
+`LAWS.bend` にゲーム規則の契約を、`PROOF.bend` にその証明を定義しています。
+
 ## 実行
 
 ```sh
@@ -25,6 +27,7 @@ python3 -m http.server 8080 -d dist
 ## テスト
 
 ```sh
+npm run test:proof
 npm install
 npx playwright install chromium
 npm run test:e2e
