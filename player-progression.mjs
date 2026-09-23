@@ -14,6 +14,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
   let lines = 0;
   let active;
   let running = true;
+  let pausedAt = null;
   let lastFall = startedAt;
   let lastActionWasRotation = false;
   let lockState = createLockState();
@@ -109,16 +110,25 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     board: board.map(row => [...row]), active: { ...active }, queue: queue.slice(0, 3),
     held, canHold, score, lines, level: rules.level(lines) >>> 0,
     ghostY: ghostY(), running, grounded: grounded(),
-    lockRemainingMs: lockState.startedAt === null ? null : Math.max(0, LOCK_DELAY_MS - (now - lockState.startedAt))
+    lockRemainingMs: lockState.startedAt === null ? null : Math.max(0, LOCK_DELAY_MS - ((pausedAt ?? now) - lockState.startedAt))
   });
   const result = (events, now) => ({ state: view(now), events });
   spawnNext(startedAt, []);
   return {
     view,
-    resume(now) { lastFall = now; if (lockState.startedAt !== null) lockState.startedAt = now; return result([], now); },
+    pause(now) { if (running && pausedAt === null) pausedAt = now; return result([], now); },
+    resume(now) {
+      if (pausedAt !== null) {
+        const elapsed = now - pausedAt;
+        lastFall += elapsed;
+        if (lockState.startedAt !== null) lockState.startedAt += elapsed;
+        pausedAt = null;
+      }
+      return result([], now);
+    },
     dispatch(action, now) {
       const events = [];
-      if (!running) return result(events, now);
+      if (!running || pausedAt !== null) return result(events, now);
       if (observeGround(lockState, grounded(), now)) {
         lock(now, events);
         return result(events, now);
@@ -153,7 +163,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     },
     tick(now) {
       const events = [];
-      if (!running) return result(events, now);
+      if (!running || pausedAt !== null) return result(events, now);
       const interval = rules.gravity_ms(rules.level(lines) >>> 0) >>> 0;
       if (now - lastFall >= interval) { move(0, 1, now); lastFall = now; }
       if (observeGround(lockState, grounded(), now)) lock(now, events);

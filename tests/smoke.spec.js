@@ -17,6 +17,19 @@ test("starts and accepts the core controls", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("pause and resume work through the existing keyboard and button controls", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "START GAME" }).click();
+  await page.keyboard.press("p");
+  await expect(page.getByRole("heading", { name: "PAUSED" })).toBeVisible();
+  await page.getByRole("button", { name: "RESUME" }).click();
+  await expect(page.locator("#overlay")).toHaveClass(/hidden/);
+  await page.keyboard.press("p");
+  await expect(page.getByRole("heading", { name: "PAUSED" })).toBeVisible();
+  await page.keyboard.press("p");
+  await expect(page.locator("#overlay")).toHaveClass(/hidden/);
+});
+
 test("starts VS JEV and applies a typed Jev choice", async ({ page }) => {
   await page.route("**/api/jev/status", route => route.fulfill({ json: { configured: true } }));
   await page.route("**/api/jev/move", async route => {
