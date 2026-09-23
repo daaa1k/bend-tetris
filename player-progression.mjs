@@ -1,5 +1,5 @@
 import { isTSpinPosition } from "./t-spin.mjs";
-import { createLockState, observeGround, resetAfterManeuver } from "./lock-delay.mjs";
+import { LOCK_DELAY_MS, createLockState, observeGround, resetAfterManeuver } from "./lock-delay.mjs";
 
 const COLS = 10;
 const ROWS = 20;
@@ -105,7 +105,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     board: board.map(row => [...row]), active: { ...active }, queue: queue.slice(0, 3),
     held, canHold, score, lines, level: rules.level(lines) >>> 0,
     ghostY: ghostY(), running, grounded: grounded(),
-    lockRemainingMs: lockState.startedAt === null ? null : Math.max(0, 500 - (now - lockState.startedAt))
+    lockRemainingMs: lockState.startedAt === null ? null : Math.max(0, LOCK_DELAY_MS - (now - lockState.startedAt))
   });
   const result = (events, now) => ({ state: view(now), events });
   spawn([]);
@@ -115,6 +115,10 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     dispatch(action, now) {
       const events = [];
       if (!running) return result(events, now);
+      if (observeGround(lockState, grounded(), now)) {
+        lock(events);
+        return result(events, now);
+      }
       switch (action) {
         case "left": move(-1, 0, now); break;
         case "right": move(1, 0, now); break;
@@ -143,6 +147,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
           break;
         }
       }
+      if (running) observeGround(lockState, grounded(), now);
       return result(events, now);
     },
     tick(now) {
