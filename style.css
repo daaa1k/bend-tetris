@@ -27,7 +27,7 @@ body {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
-.shell { width: min(100%, 880px); }
+.shell { width: min(100%, 1230px); }
 .masthead { display: flex; align-items: end; justify-content: space-between; margin-bottom: 22px; }
 .eyebrow { margin: 0 0 3px; color: var(--muted); font-size: 10px; letter-spacing: .22em; }
 h1 { margin: 0; font: 800 clamp(28px, 5vw, 48px)/.9 Arial, sans-serif; letter-spacing: -.06em; }
@@ -36,10 +36,23 @@ h1 i { color: #42485d; font-style: normal; padding: 0 .12em; }
 .runtime { color: var(--muted); font-size: 10px; letter-spacing: .14em; }
 .runtime span { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--acid); box-shadow: 0 0 12px var(--acid); }
 
+.mode-switch { display: flex; align-items: center; gap: 7px; margin: -8px auto 14px; width: max-content; }
+.mode-switch button { padding: 7px 13px; border: 1px solid var(--line); color: var(--muted); background: #0d101a; font: 700 9px inherit; letter-spacing: .12em; cursor: pointer; }
+.mode-switch button.active { border-color: var(--acid); color: var(--acid); }
+.mode-switch span { margin-left: 7px; color: var(--muted); font-size: 8px; letter-spacing: .1em; }
+.mode-switch span.online { color: var(--acid); }
 .game-layout { display: grid; grid-template-columns: 170px 322px 170px; justify-content: center; gap: 14px; align-items: start; }
+.game-layout.versus { grid-template-columns: 150px 322px 322px 150px; }
 .panel, .board-wrap { border: 1px solid var(--line); background: rgba(16, 19, 30, .88); box-shadow: 0 20px 70px #0009; }
 .panel { min-height: 400px; padding: 22px 18px; }
-.board-wrap { position: relative; padding: 1px; }
+.board-wrap { position: relative; padding: 1px; padding-top: 31px; }
+.board-label { position: absolute; inset: 0 8px auto; height: 31px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 9px; letter-spacing: .13em; }
+.board-label b { color: var(--ink); }
+.opponent { border-color: #394127; }
+.opponent.hidden { display: none; }
+#jev-board { display: block; width: 320px; max-width: 100%; height: auto; background: #090c14; }
+.jev-metrics { display: flex; justify-content: space-around; min-height: 26px; padding: 8px 3px; border-top: 1px solid var(--line); background: #090c14; color: var(--muted); font-size: 8px; letter-spacing: .08em; }
+.jev-metrics b { color: var(--acid); font-weight: 500; }
 #board { display: block; width: 320px; max-width: 100%; height: auto; background: #090c14; }
 .callout { position: absolute; top: 44%; left: 50%; z-index: 2; width: 100%; transform: translate(-50%, -50%) scale(.9); color: var(--acid); opacity: 0; text-align: center; text-shadow: 0 0 24px #c8ff38aa; font: 800 25px/1 Arial, sans-serif; letter-spacing: .08em; pointer-events: none; }
 .callout.show { animation: callout .9s ease-out; }
@@ -76,6 +89,8 @@ footer b { color: var(--acid); }
   .left-panel { grid-column: 1; padding: 14px 10px; }
   .board-wrap { grid-column: 2; grid-row: 1; }
   .right-panel { display: none; }
+  .game-layout.versus { grid-template-columns: minmax(92px, 1fr) minmax(220px, 320px); }
+  .game-layout.versus .opponent { grid-column: 2; grid-row: 2; margin-top: 8px; }
   .panel { min-height: 0; }
   .stat { margin-bottom: 17px; }
   .stat strong { font-size: 15px; }
