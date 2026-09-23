@@ -40,6 +40,50 @@ test("browser-built rules expose held, next, and active pieces through a hold sw
   expect(actual.swapped.queue).toEqual(actual.beforeSwap.queue);
 });
 
+test("pause preserves the remaining gravity interval through inputs and time updates", async ({ page }) => {
+  await page.goto("/progression.html");
+  const actual = await page.evaluate(() => {
+    const play = window.createActualProgression(1, 0);
+    const before = play.tick(300).state;
+    play.pause(300);
+    const input = play.dispatch("down", 1000);
+    const elapsed = play.tick(5000);
+    const resumed = play.resume(5000);
+    const early = play.tick(5484);
+    const fall = play.tick(5485);
+    return { before, input, elapsed, resumed, early, fall };
+  });
+  expect(actual.input.events).toEqual([]);
+  expect(actual.input.state).toEqual(actual.before);
+  expect(actual.elapsed.state).toEqual(actual.before);
+  expect(actual.resumed.state.active.y).toBe(-1);
+  expect(actual.early.state.active.y).toBe(-1);
+  expect(actual.fall.state.active.y).toBe(0);
+});
+
+test("pause preserves the remaining contact delay", async ({ page }) => {
+  await page.goto("/progression.html");
+  const actual = await page.evaluate(() => {
+    const play = window.createActualProgression(1, 0);
+    while (!play.view().grounded) play.dispatch("down", 0);
+    const before = play.tick(200).state;
+    play.pause(200);
+    const input = play.dispatch("left", 1000);
+    const elapsed = play.tick(5000);
+    const resumed = play.resume(5000);
+    const early = play.tick(5299);
+    const locked = play.tick(5300);
+    return { before, input, elapsed, resumed, early, locked };
+  });
+  expect(actual.before.lockRemainingMs).toBe(300);
+  expect(actual.input.state).toEqual(actual.before);
+  expect(actual.elapsed.state).toEqual(actual.before);
+  expect(actual.resumed.state.lockRemainingMs).toBe(300);
+  expect(actual.early.events).toEqual([]);
+  expect(actual.early.state.lockRemainingMs).toBe(1);
+  expect(actual.locked.events).toEqual([{ type: "lock" }]);
+});
+
 test("a rotated T with only two blocked corners is not a T spin", async ({ page }) => {
   await page.goto("/progression.html");
   const actual = await page.evaluate(() => {

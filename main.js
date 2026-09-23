@@ -298,7 +298,10 @@ function endGame() {
 function togglePause() {
   if (!running) return;
   paused = !paused;
-  if (paused) showOverlay("PAUSED", "P またはボタンで再開", "RESUME");
+  if (paused) {
+    applyProgress(progression.pause(performance.now()));
+    showOverlay("PAUSED", "P またはボタンで再開", "RESUME");
+  }
   else {
     overlay.classList.add("hidden");
     applyProgress(progression.resume(performance.now()));
