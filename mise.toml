@@ -2,3 +2,6 @@
 _.path = [
     "~/.bend/bin",
 ]
+
+[tools]
+node = "26"
