@@ -83,11 +83,11 @@ test("hold exchange starts a fresh contact delay and gravity interval", () => {
   for (let i = 0; i < 18; i++) progression.dispatch("down", 100 + i);
   const contact = progression.tick(200);
   assert.equal(contact.state.grounded, true);
-  assert.equal(contact.state.lockRemainingMs, 500);
-  const exchanged = progression.dispatch("hold", 600);
+  assert.equal(contact.state.lockRemainingMs, 417);
+  const exchanged = progression.dispatch("hold", 300);
   assert.equal(exchanged.state.lockRemainingMs, null);
   assert.equal(exchanged.state.grounded, false);
-  assert.equal(progression.tick(800).state.active.y, -1);
+  assert.equal(progression.tick(500).state.active.y, -1);
 });
 
 test("holding into an obstructed spawn position tops out", () => {
@@ -120,7 +120,7 @@ test("a held piece spawning on the stack receives the full contact delay", () =>
   const exchanged = progression.dispatch("hold", 100);
   assert.equal(exchanged.state.running, true);
   assert.equal(exchanged.state.grounded, true);
-  assert.equal(exchanged.state.lockRemainingMs, null);
+  assert.equal(exchanged.state.lockRemainingMs, 500);
   assert.equal(progression.tick(100).state.lockRemainingMs, 500);
   assert.equal(progression.tick(599).state.running, true);
   const landed = progression.tick(600);
