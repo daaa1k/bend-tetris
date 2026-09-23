@@ -17,6 +17,12 @@
       <div class="runtime"><span></span>BEND 2 · LIVE</div>
     </header>
 
+    <div class="mode-switch" role="group" aria-label="ゲームモード">
+      <button type="button" data-mode="solo" class="active">SOLO</button>
+      <button type="button" data-mode="jev">VS JEV</button>
+      <span id="jev-status">AI OFFLINE</span>
+    </div>
+
     <section class="game-layout" aria-label="Bend Tetris">
       <aside class="panel left-panel">
         <div class="stat"><small>SCORE</small><strong id="score">000000</strong></div>
@@ -28,6 +34,7 @@
       </aside>
 
       <div class="board-wrap">
+        <div class="board-label"><b>YOU</b><span id="player-state">READY</span></div>
         <canvas id="board" width="320" height="640" aria-label="テトリス盤面"></canvas>
         <div id="callout" class="callout" aria-live="polite"></div>
         <div id="overlay" class="overlay">
@@ -36,6 +43,12 @@
           <p id="overlay-copy">Enter またはタップでスタート</p>
           <button id="start" type="button">START GAME</button>
         </div>
+      </div>
+
+      <div id="jev-board-wrap" class="board-wrap opponent hidden" aria-label="Jevのテトリス盤面">
+        <div class="board-label"><b>JEV</b><span id="jev-thinking">WAITING</span></div>
+        <canvas id="jev-board" width="320" height="640"></canvas>
+        <div class="jev-metrics"><span>SCORE <b id="jev-score">000000</b></span><span>LINES <b id="jev-lines">00</b></span><span>CONF <b id="jev-confidence">—</b></span></div>
       </div>
 
       <aside class="panel right-panel">
@@ -64,7 +77,7 @@
       <button data-action="hold" aria-label="ホールド">HOLD</button>
     </nav>
 
-    <footer>GAME RULES COMPILED FROM <b>BEND</b> · 10 × 20 MATRIX · 7-BAG RANDOMIZER</footer>
+    <footer>GAME RULES COMPILED FROM <b>BEND</b> · 10 × 20 MATRIX · 7-BAG RANDOMIZER · AI BY <b>JEV</b></footer>
   </main>
   <script type="module" src="./main.js"></script>
 </body>

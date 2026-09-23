@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "./scripts/bend index.html -o dist",
-    "serve": "python3 -m http.server 4173 -d dist",
+    "serve": "node server.mjs",
     "test:proof": "./scripts/bend PROOF.bend",
     "test:unit": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test tests/smoke.spec.js"
