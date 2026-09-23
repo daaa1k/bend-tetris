@@ -44,13 +44,17 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
   });
   const grounded = () => collides(active.piece, active.rotation, active.x, active.y + 1);
   const topOut = events => { running = false; events.push({ type: "top-out" }); };
-  const spawn = events => {
-    fillQueue();
-    active = { piece: queue.shift(), rotation: 0, x: 3, y: -1 };
+  const spawn = (piece, now, events) => {
+    active = { piece, rotation: 0, x: 3, y: -1 };
     lastActionWasRotation = false;
     lockState = createLockState();
+    lastFall = now;
     canHold = true;
     if (collides(active.piece, active.rotation, active.x, active.y)) topOut(events);
+  };
+  const spawnNext = (now, events) => {
+    fillQueue();
+    spawn(queue.shift(), now, events);
   };
   const move = (dx, dy, now, soft = false) => {
     const wasGrounded = grounded();
@@ -74,7 +78,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
       break;
     }
   };
-  const lock = events => {
+  const lock = (now, events) => {
     const tSpin = isTSpinPosition(board, { ...active, lastActionWasRotation });
     let aboveTop = false;
     for (const [x, y] of cells(active.piece, active.rotation)) {
@@ -94,7 +98,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     } else if (cleared) score += rules.line_score(cleared, level) >>> 0;
     if (cleared) { lines += cleared; events.push({ type: "line-clear", lines: cleared }); }
     events.push({ type: "lock" });
-    spawn(events);
+    spawnNext(now, events);
   };
   const ghostY = () => {
     let y = active.y;
@@ -108,7 +112,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     lockRemainingMs: lockState.startedAt === null ? null : Math.max(0, LOCK_DELAY_MS - (now - lockState.startedAt))
   });
   const result = (events, now) => ({ state: view(now), events });
-  spawn([]);
+  spawnNext(startedAt, []);
   return {
     view,
     resume(now) { lastFall = now; if (lockState.startedAt !== null) lockState.startedAt = now; return result([], now); },
@@ -116,7 +120,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
       const events = [];
       if (!running) return result(events, now);
       if (observeGround(lockState, grounded(), now)) {
-        lock(events);
+        lock(now, events);
         return result(events, now);
       }
       switch (action) {
@@ -129,19 +133,16 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
           let distance = 0;
           while (move(0, 1, now)) distance++;
           score += distance * 2;
-          lock(events);
+          lock(now, events);
           break;
         }
         case "hold": {
           if (!canHold) break;
           const current = active.piece;
-          if (held === null) { held = current; spawn(events); }
+          if (held === null) { held = current; spawnNext(now, events); }
           else {
-            active = { piece: held, rotation: 0, x: 3, y: -1 };
+            spawn(held, now, events);
             held = current;
-            lastActionWasRotation = false;
-            lockState = createLockState();
-            if (collides(active.piece, active.rotation, active.x, active.y)) topOut(events);
           }
           canHold = false;
           break;
@@ -155,7 +156,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
       if (!running) return result(events, now);
       const interval = rules.gravity_ms(rules.level(lines) >>> 0) >>> 0;
       if (now - lastFall >= interval) { move(0, 1, now); lastFall = now; }
-      if (observeGround(lockState, grounded(), now)) lock(events);
+      if (observeGround(lockState, grounded(), now)) lock(now, events);
       return result(events, now);
     }
   };

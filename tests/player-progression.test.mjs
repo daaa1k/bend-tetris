@@ -55,3 +55,74 @@ test("gravity and contact delay use supplied time", () => {
   const landed = progression.dispatch("drop", 800);
   assert.equal(landed.events[0].type, "lock");
 });
+
+test("hold shows the held, next, and active pieces and permits one hold per piece", () => {
+  const progression = createPlayerProgression(rules, 42, 0);
+  const start = progression.view();
+  const first = progression.dispatch("hold", 10);
+  assert.equal(first.state.held, start.active.piece);
+  assert.equal(first.state.active.piece, start.queue[0]);
+  assert.deepEqual(first.state.queue.slice(0, 2), start.queue.slice(1));
+  assert.equal(first.state.canHold, false);
+  assert.deepEqual(progression.dispatch("hold", 20).state, first.state);
+
+  progression.dispatch("drop", 30);
+  const beforeExchange = progression.view();
+  const exchanged = progression.dispatch("hold", 40);
+  assert.equal(exchanged.state.active.piece, first.state.held);
+  assert.equal(exchanged.state.held, beforeExchange.active.piece);
+  assert.deepEqual(exchanged.state.queue, beforeExchange.queue);
+  assert.deepEqual(exchanged.state.active, { piece: first.state.held, rotation: 0, x: 3, y: -1 });
+  assert.equal(exchanged.state.canHold, false);
+});
+
+test("hold exchange starts a fresh contact delay and gravity interval", () => {
+  const progression = createPlayerProgression(rules, 42, 0);
+  progression.dispatch("hold", 10);
+  progression.dispatch("drop", 20);
+  for (let i = 0; i < 18; i++) progression.dispatch("down", 100 + i);
+  const contact = progression.tick(200);
+  assert.equal(contact.state.grounded, true);
+  assert.equal(contact.state.lockRemainingMs, 417);
+  const exchanged = progression.dispatch("hold", 300);
+  assert.equal(exchanged.state.lockRemainingMs, null);
+  assert.equal(exchanged.state.grounded, false);
+  assert.equal(progression.tick(500).state.active.y, -1);
+});
+
+test("holding into an obstructed spawn position tops out", () => {
+  const progression = createPlayerProgression({
+    ...rules,
+    mask: piece => piece === 6 ? 0x0f00 : 0xf000
+  }, 2, 0);
+  assert.equal(progression.view().active.piece, 6);
+  progression.dispatch("hold", 1);
+  for (let i = 0; i < 20; i++) {
+    const landed = progression.dispatch("drop", i + 2);
+    assert.equal(landed.state.running, true);
+  }
+  const before = progression.view();
+  assert.notEqual(before.active.piece, 6);
+  assert.notEqual(before.board[0][3], -1);
+  const exchanged = progression.dispatch("hold", 30);
+  assert.deepEqual(exchanged.events, [{ type: "top-out" }]);
+  assert.equal(exchanged.state.running, false);
+  assert.equal(exchanged.state.active.piece, 6);
+});
+
+test("a held piece spawning on the stack receives the full contact delay", () => {
+  const progression = createPlayerProgression({
+    ...rules,
+    mask: piece => piece === 6 ? 0x0f00 : 0xf000
+  }, 2, 0);
+  progression.dispatch("hold", 1);
+  for (let i = 0; i < 19; i++) progression.dispatch("drop", i + 2);
+  const exchanged = progression.dispatch("hold", 100);
+  assert.equal(exchanged.state.running, true);
+  assert.equal(exchanged.state.grounded, true);
+  assert.equal(exchanged.state.lockRemainingMs, 500);
+  assert.equal(progression.tick(100).state.lockRemainingMs, 500);
+  assert.equal(progression.tick(599).state.running, true);
+  const landed = progression.tick(600);
+  assert.deepEqual(landed.events, [{ type: "lock" }]);
+});
