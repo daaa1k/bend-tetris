@@ -113,10 +113,34 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     lockRemainingMs: lockState.startedAt === null ? null : Math.max(0, LOCK_DELAY_MS - ((pausedAt ?? now) - lockState.startedAt))
   });
   const result = (events, now) => ({ state: view(now), events });
+  const advanceTo = (now, events) => {
+    observeGround(lockState, grounded(), lastFall);
+    while (running) {
+      const interval = Math.max(1, rules.gravity_ms(rules.level(lines) >>> 0) >>> 0);
+      const fallAt = lastFall + interval;
+      const lockAt = lockState.startedAt === null ? Infinity : lockState.startedAt + LOCK_DELAY_MS;
+      const nextAt = Math.min(fallAt, lockAt);
+      if (nextAt > now) break;
+      if (lockAt <= fallAt) {
+        lock(nextAt, events);
+      } else {
+        move(0, 1, nextAt);
+        lastFall = nextAt;
+      }
+      if (running) observeGround(lockState, grounded(), nextAt);
+    }
+  };
   spawnNext(startedAt, []);
   return {
     view,
-    pause(now) { if (running && pausedAt === null) pausedAt = now; return result([], now); },
+    pause(now) {
+      const events = [];
+      if (running && pausedAt === null) {
+        advanceTo(now, events);
+        if (running) pausedAt = now;
+      }
+      return result(events, now);
+    },
     resume(now) {
       if (pausedAt !== null) {
         const elapsed = now - pausedAt;
@@ -129,10 +153,8 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     dispatch(action, now) {
       const events = [];
       if (!running || pausedAt !== null) return result(events, now);
-      if (observeGround(lockState, grounded(), now)) {
-        lock(now, events);
-        return result(events, now);
-      }
+      advanceTo(now, events);
+      if (!running) return result(events, now);
       switch (action) {
         case "left": move(-1, 0, now); break;
         case "right": move(1, 0, now); break;
@@ -164,9 +186,7 @@ export function createPlayerProgression(rules, initialSeed, startedAt = 0) {
     tick(now) {
       const events = [];
       if (!running || pausedAt !== null) return result(events, now);
-      const interval = rules.gravity_ms(rules.level(lines) >>> 0) >>> 0;
-      if (now - lastFall >= interval) { move(0, 1, now); lastFall = now; }
-      if (observeGround(lockState, grounded(), now)) lock(now, events);
+      advanceTo(now, events);
       return result(events, now);
     }
   };

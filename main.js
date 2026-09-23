@@ -39,6 +39,8 @@ let jevLines = 0;
 let jevBusy = false;
 let jevRun = 0;
 let jevConfigured = false;
+let pendingEvents = [];
+let eventTimer = null;
 
 const maskOf = (piece, rotation = 0) => Rules.mask(piece, rotation) >>> 0;
 
@@ -66,6 +68,12 @@ function jevBag() {
 }
 
 function reset() {
+  clearTimeout(eventTimer);
+  eventTimer = null;
+  pendingEvents = [];
+  calloutEl.classList.remove("show");
+  calloutEl.textContent = "";
+  document.body.classList.remove("flash");
   seed = (Date.now() >>> 0) || 1;
   jevSeed = (seed ^ 0x9e3779b9) >>> 0 || 1;
   progression = createPlayerProgression(Rules, seed, performance.now());
@@ -92,10 +100,18 @@ function resetJev() {
 function applyProgress(result) {
   const previous = player;
   player = result.state;
+  if (!player.running) running = false;
   if (previous.score !== player.score || previous.lines !== player.lines) updateHud();
   if (previous.held !== player.held) drawMini(document.querySelector("#hold"), player.held);
   if (previous.queue.some((piece, index) => piece !== player.queue[index])) renderPreviews();
-  for (const event of result.events) {
+  pendingEvents.push(...result.events);
+  showNextEvent();
+}
+
+function showNextEvent() {
+  if (eventTimer !== null) return;
+  while (pendingEvents.length) {
+    const event = pendingEvents.shift();
     if (event.type === "t-spin") announce(["T-SPIN", "T-SPIN SINGLE", "T-SPIN DOUBLE", "T-SPIN TRIPLE"][event.lines] || "T-SPIN");
     if (event.type === "line-clear") {
       document.body.classList.remove("flash");
@@ -103,6 +119,13 @@ function applyProgress(result) {
       document.body.classList.add("flash");
     }
     if (event.type === "top-out") endGame();
+    if (event.type === "lock") continue;
+    if (event.type === "top-out") return;
+    eventTimer = setTimeout(() => {
+      eventTimer = null;
+      showNextEvent();
+    }, 900);
+    return;
   }
 }
 
@@ -300,7 +323,8 @@ function togglePause() {
   paused = !paused;
   if (paused) {
     applyProgress(progression.pause(performance.now()));
-    showOverlay("PAUSED", "P またはボタンで再開", "RESUME");
+    if (running) showOverlay("PAUSED", "P またはボタンで再開", "RESUME");
+    else paused = false;
   }
   else {
     overlay.classList.add("hidden");
