@@ -1,11 +1,16 @@
-import { createReadStream, existsSync } from "node:fs";
+import { createReadStream, existsSync, realpathSync, statSync } from "node:fs";
 import { createServer } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { extname, isAbsolute, join, normalize, relative, sep } from "node:path";
 
 const port = Number(process.env.PORT || 4173);
 const root = join(process.cwd(), "dist");
 const apiKey = process.env.TYPESAFE_API_KEY;
 const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".wasm": "application/wasm", ".png": "image/png" };
+
+function insideRoot(file, directory) {
+  const path = relative(directory, file);
+  return path !== "" && path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
+}
 
 function json(response, status, body) {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -56,7 +61,10 @@ const server = createServer(async (request, response) => {
 
   const pathname = request.url === "/" ? "/index.html" : request.url.split("?")[0];
   const file = normalize(join(root, pathname));
-  if (!file.startsWith(root) || !existsSync(file)) { response.writeHead(404); return response.end("Not found"); }
+  if (!insideRoot(file, root) || !existsSync(file) || !insideRoot(realpathSync(file), realpathSync(root)) || !statSync(file).isFile()) {
+    response.writeHead(404);
+    return response.end("Not found");
+  }
   response.writeHead(200, { "content-type": types[extname(file)] || "application/octet-stream" });
   createReadStream(file).pipe(response);
 });
