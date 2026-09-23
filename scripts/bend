@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -eu
+
+if command -v bend >/dev/null 2>&1; then
+  exec bend "$@"
+fi
+
+bend_home=${BEND_HOME:-"$HOME/.bend"}
+bend_bin="$bend_home/bin/bend"
+
+if [ -x "$bend_bin" ]; then
+  exec "$bend_bin" "$@"
+fi
+
+printf '%s\n' \
+  'Bend が見つかりません。次のコマンドでインストールしてください:' \
+  '  curl -fsSL https://bend-lang.com/install.sh | sh' >&2
+exit 127

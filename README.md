@@ -7,7 +7,7 @@ Bend で定義したテトロミノ形状・通常／Tスピンのスコア・�
 ## 実行
 
 ```sh
-bend index.html -o dist
+npm run build
 python3 -m http.server 8080 -d dist
 ```
 
