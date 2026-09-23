@@ -6,7 +6,7 @@
 
 | 計画 | 内容 | 優先度 | 工数 | 依存 | 状態 |
 |---|---|---|---|---|---|
-| [001](001-confine-static-files.md) | 静的配信を dist 内に限定 | P1 | S | なし | TODO |
+| [001](001-confine-static-files.md) | 静的配信を dist 内に限定 | P1 | S | なし | DONE |
 | [002](002-limit-jev-api-use.md) | Jev API 利用範囲を制限 | P1 | M | 001 | TODO |
 | [003](003-timeout-jev-request.md) | Jev 応答停止時に代替へ進む | P2 | S | 002 | TODO |
 
