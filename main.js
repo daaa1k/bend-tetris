@@ -1,6 +1,5 @@
 import Rules from "./game.bend";
-import { isTSpinPosition } from "./t-spin.mjs";
-import { createLockState, observeGround, resetAfterManeuver } from "./lock-delay.mjs";
+import { createPlayerProgression } from "./player-progression.mjs";
 import { candidateCriteria, enumeratePlacements, fallbackPlacement } from "./jev-ai.mjs";
 
 const COLS = 10;
@@ -26,19 +25,11 @@ const jevCtx = jevCanvas.getContext("2d");
 const jevThinkingEl = document.querySelector("#jev-thinking");
 const jevStatusEl = document.querySelector("#jev-status");
 
-let board;
-let active;
-let queue;
-let held;
-let canHold;
-let score;
-let lines;
+let progression;
+let player;
 let running = false;
 let paused = false;
-let lastFall = 0;
 let seed = (Date.now() >>> 0) || 1;
-let lastActionWasRotation = false;
-let lockState = createLockState();
 let mode = "solo";
 let jevBoard;
 let jevQueue;
@@ -60,20 +51,6 @@ function cells(piece, rotation = 0) {
   return result;
 }
 
-function random() {
-  seed = Rules.next_seed(seed) >>> 0;
-  return seed / 0x100000000;
-}
-
-function bag() {
-  const pieces = [0, 1, 2, 3, 4, 5, 6];
-  for (let i = pieces.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
-  }
-  return pieces;
-}
-
 function jevRandom() {
   jevSeed = Rules.next_seed(jevSeed) >>> 0;
   return jevSeed / 0x100000000;
@@ -88,41 +65,15 @@ function jevBag() {
   return pieces;
 }
 
-function fillQueue() {
-  while (queue.length < 7) queue.push(...bag());
-}
-
-function collides(piece, rotation, px, py) {
-  return cells(piece, rotation).some(([x, y]) => {
-    const bx = px + x;
-    const by = py + y;
-    return bx < 0 || bx >= COLS || by >= ROWS || (by >= 0 && board[by][bx] !== -1);
-  });
-}
-
-function spawn() {
-  fillQueue();
-  active = { piece: queue.shift(), rotation: 0, x: 3, y: -1 };
-  lastActionWasRotation = false;
-  lockState = createLockState();
-  canHold = true;
-  renderPreviews();
-  if (collides(active.piece, active.rotation, active.x, active.y)) endGame();
-}
-
 function reset() {
   seed = (Date.now() >>> 0) || 1;
   jevSeed = (seed ^ 0x9e3779b9) >>> 0 || 1;
-  board = Array.from({ length: ROWS }, () => Array(COLS).fill(-1));
-  queue = [];
-  held = null;
-  score = 0;
-  lines = 0;
+  progression = createPlayerProgression(Rules, seed, performance.now());
+  player = progression.view();
   paused = false;
-  fillQueue();
-  spawn();
   updateHud();
-  drawMini(document.querySelector("#hold"), null);
+  renderPreviews();
+  drawMini(document.querySelector("#hold"), player.held);
   resetJev();
 }
 
@@ -138,70 +89,21 @@ function resetJev() {
   updateJevHud();
 }
 
-function isGrounded() {
-  return collides(active.piece, active.rotation, active.x, active.y + 1);
-}
-
-function move(dx, dy, awardSoftDrop = true) {
-  if (!running || paused) return false;
-  const wasGrounded = isGrounded();
-  if (!collides(active.piece, active.rotation, active.x + dx, active.y + dy)) {
-    active.x += dx;
-    active.y += dy;
-    lastActionWasRotation = false;
-    resetAfterManeuver(lockState, wasGrounded, isGrounded(), performance.now());
-    if (dy > 0 && awardSoftDrop) score += 1;
-    updateHud();
-    return true;
-  }
-  return false;
-}
-
-function rotate(direction) {
-  if (!running || paused) return;
-  const wasGrounded = isGrounded();
-  const next = (active.rotation + direction + 4) % 4;
-  for (const kick of [0, -1, 1, -2, 2]) {
-    if (!collides(active.piece, next, active.x + kick, active.y)) {
-      active.rotation = next;
-      active.x += kick;
-      lastActionWasRotation = true;
-      resetAfterManeuver(lockState, wasGrounded, isGrounded(), performance.now());
-      return;
+function applyProgress(result) {
+  const previous = player;
+  player = result.state;
+  if (previous.score !== player.score || previous.lines !== player.lines) updateHud();
+  if (previous.held !== player.held) drawMini(document.querySelector("#hold"), player.held);
+  if (previous.queue.some((piece, index) => piece !== player.queue[index])) renderPreviews();
+  for (const event of result.events) {
+    if (event.type === "t-spin") announce(["T-SPIN", "T-SPIN SINGLE", "T-SPIN DOUBLE", "T-SPIN TRIPLE"][event.lines] || "T-SPIN");
+    if (event.type === "line-clear") {
+      document.body.classList.remove("flash");
+      void document.body.offsetWidth;
+      document.body.classList.add("flash");
     }
+    if (event.type === "top-out") endGame();
   }
-}
-
-function hardDrop() {
-  if (!running || paused) return;
-  let distance = 0;
-  while (!collides(active.piece, active.rotation, active.x, active.y + 1)) {
-    active.y++;
-    distance++;
-  }
-  if (distance > 0) lastActionWasRotation = false;
-  score += distance * 2;
-  lock();
-}
-
-function hold() {
-  if (!running || paused || !canHold) return;
-  const current = active.piece;
-  if (held === null) {
-    held = current;
-    spawn();
-  } else {
-    active = { piece: held, rotation: 0, x: 3, y: -1 };
-    lastActionWasRotation = false;
-    held = current;
-  }
-  canHold = false;
-  drawMini(document.querySelector("#hold"), held);
-  renderPreviews();
-}
-
-function isTSpin() {
-  return isTSpinPosition(board, { ...active, lastActionWasRotation });
 }
 
 function announce(text) {
@@ -209,43 +111,6 @@ function announce(text) {
   calloutEl.classList.remove("show");
   void calloutEl.offsetWidth;
   calloutEl.classList.add("show");
-}
-
-function lock() {
-  const tSpin = isTSpin();
-  let aboveTop = false;
-  for (const [x, y] of cells(active.piece, active.rotation)) {
-    const by = active.y + y;
-    if (by < 0) aboveTop = true;
-    else board[by][active.x + x] = active.piece;
-  }
-  if (aboveTop) return endGame();
-
-  const before = board.length;
-  board = board.filter(row => row.some(cell => cell === -1));
-  const cleared = before - board.length;
-  while (board.length < ROWS) board.unshift(Array(COLS).fill(-1));
-  const currentLevel = Rules.level(lines) >>> 0;
-  if (tSpin) {
-    score += Rules.t_spin_score(cleared, currentLevel) >>> 0;
-    announce(["T-SPIN", "T-SPIN SINGLE", "T-SPIN DOUBLE", "T-SPIN TRIPLE"][cleared] || "T-SPIN");
-  } else if (cleared) {
-    score += Rules.line_score(cleared, currentLevel) >>> 0;
-  }
-  if (cleared) {
-    lines += cleared;
-    document.body.classList.remove("flash");
-    void document.body.offsetWidth;
-    document.body.classList.add("flash");
-  }
-  spawn();
-  updateHud();
-}
-
-function ghostY() {
-  let y = active.y;
-  while (!collides(active.piece, active.rotation, active.x, y + 1)) y++;
-  return y;
 }
 
 function paintCell(target, x, y, color, alpha = 1, size = CELL) {
@@ -271,11 +136,12 @@ function drawBoard() {
   for (let y = 1; y < ROWS; y++) {
     ctx.beginPath(); ctx.moveTo(0, y * CELL + .5); ctx.lineTo(COLS * CELL, y * CELL + .5); ctx.stroke();
   }
-  board.forEach((row, y) => row.forEach((piece, x) => {
+  player.board.forEach((row, y) => row.forEach((piece, x) => {
     if (piece !== -1) paintCell(ctx, x, y, COLORS[piece]);
   }));
-  if (active && running) {
-    const gy = ghostY();
+  if (player.active && running) {
+    const active = player.active;
+    const gy = player.ghostY;
     cells(active.piece, active.rotation).forEach(([x, y]) => {
       if (gy + y >= 0) paintCell(ctx, active.x + x, gy + y, COLORS[active.piece], .14);
     });
@@ -324,7 +190,7 @@ async function playJevMove(run) {
   if (!candidates.length) {
     jevBusy = false;
     running = false;
-    showOverlay("YOU WIN", `JEV TOPPED OUT · SCORE ${String(score).padStart(6, "0")}`, "PLAY AGAIN");
+    showOverlay("YOU WIN", `JEV TOPPED OUT · SCORE ${String(player.score).padStart(6, "0")}`, "PLAY AGAIN");
     return;
   }
 
@@ -383,7 +249,7 @@ function drawMini(canvas, piece) {
 function renderPreviews() {
   const list = document.querySelector("#next-list");
   list.replaceChildren();
-  queue.slice(0, 3).forEach((piece, index) => {
+  player.queue.forEach((piece, index) => {
     const canvas = document.createElement("canvas");
     canvas.width = 128;
     canvas.height = 76;
@@ -394,9 +260,9 @@ function renderPreviews() {
 }
 
 function updateHud() {
-  scoreEl.textContent = String(score).padStart(6, "0");
-  linesEl.textContent = String(lines).padStart(2, "0");
-  levelEl.textContent = String(Rules.level(lines) >>> 0).padStart(2, "0");
+  scoreEl.textContent = String(player.score).padStart(6, "0");
+  linesEl.textContent = String(player.lines).padStart(2, "0");
+  levelEl.textContent = String(player.level).padStart(2, "0");
 }
 
 function showOverlay(title, copy, button) {
@@ -415,7 +281,6 @@ function startGame() {
   reset();
   running = true;
   paused = false;
-  lastFall = performance.now();
   overlay.classList.add("hidden");
   document.querySelector("#player-state").textContent = "PLAYING";
   if (mode === "jev") playJevMove(jevRun);
@@ -425,9 +290,9 @@ function endGame() {
   running = false;
   jevRun++;
   document.querySelector("#player-state").textContent = "TOPPED OUT";
-  const heading = mode === "jev" && score > jevScore ? "YOU WIN" : "GAME OVER";
+  const heading = mode === "jev" && player.score > jevScore ? "YOU WIN" : "GAME OVER";
   const rival = mode === "jev" ? ` · JEV ${String(jevScore).padStart(6, "0")}` : "";
-  showOverlay(heading, `YOU ${String(score).padStart(6, "0")}${rival}`, "PLAY AGAIN");
+  showOverlay(heading, `YOU ${String(player.score).padStart(6, "0")}${rival}`, "PLAY AGAIN");
 }
 
 function togglePause() {
@@ -436,23 +301,13 @@ function togglePause() {
   if (paused) showOverlay("PAUSED", "P またはボタンで再開", "RESUME");
   else {
     overlay.classList.add("hidden");
-    lastFall = performance.now();
-    if (lockState.startedAt !== null) lockState.startedAt = lastFall;
+    applyProgress(progression.resume(performance.now()));
     if (mode === "jev") playJevMove(jevRun);
   }
 }
 
 function action(name) {
-  const actions = {
-    left: () => move(-1, 0),
-    right: () => move(1, 0),
-    down: () => move(0, 1),
-    "rotate-left": () => rotate(-1),
-    "rotate-right": () => rotate(1),
-    drop: hardDrop,
-    hold
-  };
-  actions[name]?.();
+  if (running && !paused) applyProgress(progression.dispatch(name, performance.now()));
 }
 
 document.addEventListener("keydown", event => {
@@ -486,12 +341,7 @@ document.querySelectorAll(".touch button").forEach(button => {
 });
 
 function frame(now) {
-  if (running && !paused) {
-    const level = Rules.level(lines) >>> 0;
-    const interval = Rules.gravity_ms(level) >>> 0;
-    if (now - lastFall >= interval) { move(0, 1, false); lastFall = now; }
-    if (running && observeGround(lockState, isGrounded(), now)) lock();
-  }
+  if (running && !paused) applyProgress(progression.tick(now));
   drawBoard();
   if (mode === "jev") drawJevBoard();
   requestAnimationFrame(frame);
