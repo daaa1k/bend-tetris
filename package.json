@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "prebuild": "npm run test:proof",
     "build": "./scripts/bend index.html -o dist",
     "serve": "node server.mjs",
     "test:proof": "./scripts/bend PROOF.bend",
