@@ -1,5 +1,21 @@
 const { test, expect } = require("@playwright/test");
 
+test("delayed browser updates preserve progression and event order", async ({ page }) => {
+  await page.goto("/progression.html");
+  const actual = await page.evaluate(() => {
+    const delayed = window.createActualProgression(1, 0);
+    const stepped = window.createActualProgression(1, 0);
+    const result = delayed.tick(50000);
+    const events = [];
+    for (let now = 1; now <= 50000; now += 25) events.push(...stepped.tick(now).events);
+    events.push(...stepped.tick(50000).events);
+    return { result, state: stepped.view(50000), events };
+  });
+  expect(actual.result.state).toEqual(actual.state);
+  expect(actual.result.events).toEqual(actual.events);
+  expect(actual.events.filter(event => event.type === "lock").length).toBeGreaterThanOrEqual(2);
+});
+
 test("browser-built Bend rules drive the public progression interface", async ({ page }) => {
   await page.goto("/progression.html");
   const actual = await page.evaluate(() => {
@@ -142,7 +158,7 @@ test("a rotated T spin awards Bend points and announces the result", async ({ pa
     while (!play.view().grounded) play.dispatch("down", 0);
     const before = play.view().score;
     play.dispatch("rotate-right", 0);
-    const spin = play.dispatch("drop", 0);
+    const spin = play.tick(500);
     return { before, spin };
   });
   expect(actual.spin.events).toContainEqual({ type: "t-spin", lines: 0 });
@@ -202,7 +218,7 @@ test("a completed row uses Bend scoring through the progression interface", asyn
     play.dispatch("right", 0);
     while (!play.view().grounded) play.dispatch("down", 0);
     const before = play.view().score;
-    const cleared = play.dispatch("drop", 0);
+    const cleared = play.tick(500);
     return { before, cleared };
   });
   expect(actual.cleared.events).toContainEqual({ type: "line-clear", lines: 1 });

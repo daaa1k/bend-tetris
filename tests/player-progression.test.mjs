@@ -56,6 +56,32 @@ test("gravity and contact delay use supplied time", () => {
   assert.equal(landed.events[0].type, "lock");
 });
 
+test("a delayed tick matches scheduled ticks through locks and the next piece", () => {
+  const coarse = createPlayerProgression(rules, 42, 0);
+  const fine = createPlayerProgression(rules, 42, 0);
+  const delayed = coarse.tick(32000);
+  const events = [];
+  for (let now = 1; now <= 32000; now++) events.push(...fine.tick(now).events);
+  assert.deepEqual(delayed.state, fine.view(32000));
+  assert.deepEqual(delayed.events, events);
+  assert.ok(events.filter(event => event.type === "lock").length >= 2);
+});
+
+test("a delayed tick returns every lock before top out", () => {
+  const fastRules = { ...rules, mask: () => 0xf000, gravity_ms: () => 1 };
+  const delayed = createPlayerProgression(fastRules, 42, 0).tick(12000);
+  assert.equal(delayed.state.running, false);
+  assert.deepEqual(delayed.events.at(-1), { type: "top-out" });
+  assert.equal(delayed.events.filter(event => event.type === "lock").length, 20);
+});
+
+test("an input at the same time has the same result with or without intermediate frames", () => {
+  const delayed = createPlayerProgression(rules, 42, 0);
+  const framed = createPlayerProgression(rules, 42, 0);
+  framed.tick(785);
+  assert.deepEqual(delayed.dispatch("down", 800), framed.dispatch("down", 800));
+});
+
 test("hold shows the held, next, and active pieces and permits one hold per piece", () => {
   const progression = createPlayerProgression(rules, 42, 0);
   const start = progression.view();
